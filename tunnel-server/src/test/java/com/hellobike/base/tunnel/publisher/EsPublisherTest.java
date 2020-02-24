@@ -22,6 +22,7 @@ import com.hellobike.base.tunnel.model.ColumnData;
 import com.hellobike.base.tunnel.model.Event;
 import com.hellobike.base.tunnel.model.EventType;
 import com.hellobike.base.tunnel.model.InvokeContext;
+import com.hellobike.base.tunnel.model.datatype.PGDataType;
 import com.hellobike.base.tunnel.publisher.es.EsPublisher;
 import com.hellobike.base.tunnel.utils.TimeUtils;
 import org.junit.Assert;
@@ -60,8 +61,10 @@ public class EsPublisherTest {
         String table = "";
         List<IEventFilter> filters = new ArrayList<>(Collections.singleton(new TableNameFilter(table)));
 
+        List<String> address=new ArrayList<String>();
+        address.add("http://localhost:9200");
         EsConfig esConfig = new EsConfig();
-        esConfig.setServer("http://localhost:9200");
+        esConfig.setServers(address);
         esConfig.setEsIdFieldNames(Collections.singletonList("id"));
         esConfig.setPkFieldNames(Collections.singletonList("id"));
         esConfig.setSchema("test1");
@@ -75,22 +78,22 @@ public class EsPublisherTest {
 
         ColumnData cd1 = new ColumnData();
         cd1.setName("id");
-        cd1.setDataType("integer");
+        cd1.setDataType(PGDataType.INTEGER);
         cd1.setValue("1001");
 
         ColumnData cd2 = new ColumnData();
         cd2.setName("name");
-        cd2.setDataType("varchar");
+        cd2.setDataType(PGDataType.CHARACTER_VARYING);
         cd2.setValue("tom hanks");
 
         ColumnData cd3 = new ColumnData();
         cd3.setName("sex");
-        cd3.setDataType("varchar");
+        cd3.setDataType(PGDataType.CHARACTER);
         cd3.setValue("mail");
 
         ColumnData cd4 = new ColumnData();
         cd4.setName("email");
-        cd4.setDataType("varchar");
+        cd4.setDataType(PGDataType.CHARACTER);
         cd4.setValue("xxx@tom.com");
         List<ColumnData> dataList = new ArrayList<>(Arrays.asList(cd1, cd2, cd3, cd4));
 

@@ -19,6 +19,7 @@ import com.hellobike.base.tunnel.config.HBaseConfig;
 import com.hellobike.base.tunnel.model.ColumnData;
 import com.hellobike.base.tunnel.model.Event;
 import com.hellobike.base.tunnel.model.EventType;
+import com.hellobike.base.tunnel.model.datatype.PGDataType;
 import com.hellobike.base.tunnel.utils.TimeUtils;
 import org.junit.Assert;
 import org.junit.Test;
@@ -49,7 +50,7 @@ public class HBaseClientTest {
         ColumnData cd1 = new ColumnData();
         cd1.setName("number");
         cd1.setValue("1123");
-        cd1.setDataType("integer");
+        cd1.setDataType(PGDataType.INTEGER);
         dataList.add(cd1);
         HBaseConfig config = new HBaseConfig();
         config.setFamily("f1");

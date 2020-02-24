@@ -25,6 +25,7 @@ public enum EventType implements Serializable {
     // sql 语句类型
     BEGIN,
     COMMIT,
+    TRUNCATE,
     INSERT,
     UPDATE,
     DELETE;
@@ -42,6 +43,8 @@ public enum EventType implements Serializable {
             return EventType.BEGIN;
         } else if (EventType.COMMIT.name().equalsIgnoreCase(message)) {
             return EventType.COMMIT;
+        } else if (EventType.TRUNCATE.name().equalsIgnoreCase(message)) {
+            return EventType.TRUNCATE;
         } else {
             throw new IllegalArgumentException("unsupported event:" + message);
         }

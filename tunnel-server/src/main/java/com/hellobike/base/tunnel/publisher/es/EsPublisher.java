@@ -22,6 +22,9 @@ import com.hellobike.base.tunnel.model.ColumnData;
 import com.hellobike.base.tunnel.model.Event;
 import com.hellobike.base.tunnel.model.EventType;
 import com.hellobike.base.tunnel.model.InvokeContext;
+import com.hellobike.base.tunnel.model.datatype.ESParse;
+import com.hellobike.base.tunnel.model.datatype.IParseDataType;
+import com.hellobike.base.tunnel.model.datatype.PGDataType;
 import com.hellobike.base.tunnel.monitor.TunnelMonitorFactory;
 import com.hellobike.base.tunnel.publisher.BasePublisher;
 import com.hellobike.base.tunnel.publisher.IPublisher;
@@ -71,15 +74,16 @@ public class EsPublisher extends BasePublisher implements IPublisher {
 
 
     private volatile boolean                            /**/ started;
+    private final IParseDataType esParse = new ESParse();
 
     public EsPublisher(List<EsConfig> esConfigs) {
         this.esConfigs = esConfigs;
-        int total = 8;
+        int total = esConfigs.stream().map(x -> x.getServers().size()).max(Integer::compareTo).get();
         this.executor = new ThreadPoolExecutor(total, total, 60L, TimeUnit.SECONDS, new ArrayBlockingQueue<>(5000), new NamedThreadFactory("EsSendThread"));
 
         this.restClients = new RestHighLevelClient[total];
         for (int i = 0; i < total; i++) {
-            this.restClients[i] = newRestEsHighLevelClient();
+            this.restClients[i] = newRestEsHighLevelClient(i);
         }
         this.dataSources = new ConcurrentHashMap<>();
         this.requestHelperQueue = new LinkedBlockingQueue<>(81920);
@@ -150,22 +154,39 @@ public class EsPublisher extends BasePublisher implements IPublisher {
 
     }
 
-    private DocWriteRequest eventToRequest(EsConfig esConfig, EventType eventType, Map<String, String> values) {
+    private List<DocWriteRequest> eventToRequest(EsConfig esConfig, EventType eventType, Map<String, Object> values) {
 
-        DocWriteRequest req = null;
-
+//        List<DocWriteRequest> req = Collections.synchronizedList(new ArrayList<DocWriteRequest>());
+        List<DocWriteRequest> req = new ArrayList<DocWriteRequest>();
         // column_name,column_name
-        String id = esConfig.getEsIdFieldNames()
-                .stream()
+        String id = esConfig.getEsIdFieldNames().stream()
                 .map(esId -> String.valueOf(values.get(esId)))
                 .reduce((s1, s2) -> s1 + esConfig.getSeparator() + s2)
                 .orElse("");
-
-        if (StringUtils.isBlank(id)) {
-            return null;
-        }
         String type = esConfig.getType();
         String index = esConfig.getIndex();
+
+        if (EventType.UPDATE == eventType) {
+            String oldId = esConfig.getEsIdFieldNames().stream()
+                    .map(esId -> String.valueOf(values.get("old-key: " + esId)))
+                    .reduce((s1, s2) -> s1 + esConfig.getSeparator() + s2)
+                    .orElse("");
+            String newId = esConfig.getEsIdFieldNames().stream()
+                    .map(esId -> String.valueOf(values.get("new-tuple: " + esId)))
+                    .reduce((s1, s2) -> s1 + esConfig.getSeparator() + s2)
+                    .orElse("");
+            if (!StringUtils.isBlank(oldId) && !"null".equals(oldId)) {
+                id = newId;
+                esConfig.getEsIdFieldNames().stream()
+                        .forEach(esId -> {
+                            values.put(esId, values.get("new-tuple: " + esId));
+                            values.remove("old-key: " + esId);
+                            values.remove("new-tuple: " + esId);
+                        });
+                DeleteRequest dr = new DeleteRequest(index, type, oldId);
+                req.add(dr);
+            }
+        }
 
 
         switch (eventType) {
@@ -174,12 +195,14 @@ public class EsPublisher extends BasePublisher implements IPublisher {
                 UpdateRequest ur = new UpdateRequest(index, type, id);
                 ur.doc(values);
                 ur.docAsUpsert(true);
-                req = ur;
+                req.add(ur);
                 break;
             case DELETE:
                 DeleteRequest dr = new DeleteRequest(index, type, id);
                 dr.id(id);
-                req = dr;
+                req.add(dr);
+                break;
+            case TRUNCATE://todo add truncate
                 break;
             default:
                 break;
@@ -221,27 +244,40 @@ public class EsPublisher extends BasePublisher implements IPublisher {
         long s = System.currentTimeMillis();
         BulkRequest br = createBulkRequest(doc);
         RequestOptions requestOptions = createRequestOptions();
-        int retry = 10;
+        int maxRetry = this.esConfigs.stream().map(EsConfig::getRetry).max(Integer::compareTo).get();
+        int retry = maxRetry;
+        int retryWait = this.esConfigs.stream().map(EsConfig::getRetryWait).max(Integer::compareTo).get();
 
         while (retry > 0) {
             try {
-
                 BulkResponse response = restClient.bulk(br, requestOptions);
 
                 long e = System.currentTimeMillis();
-                LOG.info("indexed doc:{},cost:{}ms,result:{}", doc.size(), e - s, response.hasFailures());
+//                LOG.info("indexed doc:{},cost:{}ms,has_failures:{} first failures:{}", doc.size(), e - s, response.hasFailures(),response.getItems()[0].getFailure().getCause());
+                LOG.info("indexed doc:{},cost:{}ms,has_failures:{}", doc.size(), e - s, response.hasFailures());
                 return;
             } catch (Exception e) {
-                //
                 retry--;
-                LOG.error("Send Data To Es Occurred Error,retry:" + (10 - retry), e);
+                if (retry == 0) {
+                    LOG.error("Send Data To Es Occurred Error Num{}", maxRetry - retry, e);
+                } else {
+                    LOG.warn("Send Data To Es Occurred Error,current retry num:{} ,Max retry num:{}", maxRetry - retry, maxRetry);
+                    LOG.info("Send Data To Es retry wait {} ms", retryWait);
+                    try {
+                        Thread.sleep(retryWait);
+                    } catch (InterruptedException ex) {
+                        ex.printStackTrace();
+                    }
+                }
             }
         }
     }
 
-    private BulkRequest createBulkRequest(List<DocWriteRequest> doc) {
+    private BulkRequest createBulkRequest(List<DocWriteRequest> docs) {
         BulkRequest br = new BulkRequest();
-        br.add(doc);
+        for (DocWriteRequest doc : docs) {
+            br.add(doc);
+        }
         br.setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
         br.waitForActiveShards(ActiveShardCount.ONE);
         return br;
@@ -261,12 +297,24 @@ public class EsPublisher extends BasePublisher implements IPublisher {
         return helpers;
     }
 
-    private RestHighLevelClient newRestEsHighLevelClient() {
+    //esConfig.getServers().stream().map(HttpHost::create))
+    private RestHighLevelClient newRestEsHighLevelClient(int node) {
         return new RestHighLevelClient(RestClient.builder(
                 this.esConfigs
                         .stream()
-                        .map(esConfig -> HttpHost.create(esConfig.getServer()))
-                        .toArray(HttpHost[]::new)
+                        .flatMap(esConfig -> {
+                            List<String> useServers = new ArrayList<String>();
+                            List<String> servers = esConfig.getServers();
+                            int startNode = node % servers.size();// 其实线程是该配置的 N 倍
+                            for (int i = startNode; i < servers.size(); i++) {
+                                useServers.add(servers.get(i));
+                            }
+                            for (int i = 0; i < startNode; i++) {
+                                useServers.add(servers.get(i));
+                            }
+                            LOG.info("create ES RestHighLevelClient {}  use {}", node, useServers);
+                            return useServers.stream().map(HttpHost::create);
+                        }).toArray(HttpHost[]::new)
         ));
     }
 
@@ -326,25 +374,25 @@ public class EsPublisher extends BasePublisher implements IPublisher {
 
             return data.stream()
                     .map(line -> {
-                        Map<String, String> lines = new LinkedHashMap<>();
+                        Map<String, Object> lines = new LinkedHashMap<>();
                         for (Map.Entry<String, Object> e : line.entrySet()) {
                             lines.put(e.getKey(), String.valueOf(e.getValue()));
                         }
                         return lines;
                     })
-                    .map(line -> eventToRequest(esConfig, EventType.INSERT, line))
+                    .flatMap(line -> eventToRequest(esConfig, EventType.INSERT, line).stream())
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());
         } else {
             return helpers.stream()
-                    .map(helper ->
+                    .flatMap(helper ->
                             eventToRequest(
                                     helper.esConfig,
                                     helper.context.getEvent().getEventType(),
                                     helper.context.getEvent().getDataList()
-                                            .stream()
-                                            .collect(Collectors.toMap(ColumnData::getName, ColumnData::getValue))
-                            )
+                                            .stream().filter(x -> null != x.getValue())
+                                            .collect(Collectors.toMap(ColumnData::getName, y -> esParse.parse(y.getDataType(), y.getValue())))
+                            ).stream()
                     )
                     .filter(Objects::nonNull)
                     .collect(Collectors.toList());

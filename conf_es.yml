@@ -1,0 +1,25 @@
+tunnel_subscribe_config:
+  pg_dump_path: ''
+  subscribes:
+    - slotName: slot_for_es
+      pgConnConf:
+        host: 10.122.2.165
+        port: 5432
+        database: aem
+        user: aemuser
+        password: aemuser
+      rules:
+        - {table: 'test_sync_es_t02_order_goods_attr', pks: ['order_goods_cd'], esid: ['order_goods_cd'], index: 'test_sync_es_t02_order_goods_attr', type: '_doc'}
+      esConf:
+        retry: 100
+        retry_wait: 1000 # ms
+        addrs:
+          - 'http://10.122.189.108:9200'
+          - 'http://10.122.189.109:9200'
+          - 'http://10.122.189.110:9200'
+          - 'http://10.122.189.111:9200'
+          - 'http://10.122.189.108:9201'
+          - 'http://10.122.189.109:9201'
+          - 'http://10.122.189.110:9201'
+          - 'http://10.122.189.111:9201'
+tunnel_zookeeper_address: 10.122.189.112:2181

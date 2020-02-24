@@ -18,6 +18,7 @@ package com.hellobike.base.tunnel.publisher.hive;
 import com.hellobike.base.tunnel.model.ColumnData;
 import com.hellobike.base.tunnel.model.Event;
 import com.hellobike.base.tunnel.model.EventType;
+import com.hellobike.base.tunnel.model.datatype.PGDataType;
 import org.junit.Test;
 
 import java.util.HashMap;
@@ -57,10 +58,10 @@ public class HiveClientTest {
         e.setTable("test1");
         e.setEventType(EventType.INSERT);
         e.setSchema("default");
-        e.getDataList().add(new ColumnData("user_id", "string", "1001"));
-        e.getDataList().add(new ColumnData("device_id", "string", "20001"));
-        e.getDataList().add(new ColumnData("price", "double", "20001.0"));
-        e.getDataList().add(new ColumnData("sales", "int", "10"));
+        e.getDataList().add(new ColumnData("user_id", PGDataType.TEXT, "1001"));
+        e.getDataList().add(new ColumnData("device_id", PGDataType.TEXT, "20001"));
+        e.getDataList().add(new ColumnData("price", PGDataType.DOUBLE_PRECISION, "20001.0"));
+        e.getDataList().add(new ColumnData("sales", PGDataType.INTEGER, "10"));
         return e;
     }
 

@@ -65,7 +65,9 @@ public class ApolloConfig {
 
     @Data
     public static class EsConf {
-        private String addrs;
+        private List<String> addrs;
+        private int retry=Integer.MAX_VALUE;
+        private int retry_wait=1000;//ms
     }
 
     @Data

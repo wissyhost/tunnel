@@ -4,6 +4,7 @@ import com.hellobike.base.tunnel.model.ColumnData;
 import com.hellobike.base.tunnel.model.Event;
 import com.hellobike.base.tunnel.model.EventType;
 import com.hellobike.base.tunnel.model.InvokeContext;
+import com.hellobike.base.tunnel.model.datatype.PGDataType;
 import com.hellobike.base.tunnel.store.MemStore;
 
 /*
@@ -91,8 +92,8 @@ public class EventParser implements IEventParser {
         while (lexer.hasNext()) {
             ColumnData data = new ColumnData();
             String name = parseName(lexer);
-            if ("(no-tuple-data)".equals(name)) {
-                // 删除时,无主键,不能同步
+            if ("(no-tuple-data)".equals(name) || "(no-flags)".equals(name)) {
+                // 删除时,无主键,不能同步,TRUNCATE 时是 no-flags
                 return null;
             }
             String type = parseType(lexer);
@@ -101,7 +102,7 @@ public class EventParser implements IEventParser {
 
 
             data.setName(name);
-            data.setDataType(type);
+            data.setDataType(PGDataType.parse(type));
             data.setValue(value);
             event.getDataList().add(data);
         }
@@ -126,9 +127,14 @@ public class EventParser implements IEventParser {
             lexer.skip(1);
             lexer.nextTokenToQuote();
             return lexer.token();
+        } else {
+            String value = lexer.nextToken(' ');
+            if ("null".equals(value)) {
+                return null;
+            }
+            return lexer.token();
         }
-        lexer.nextToken(' ');
-        return lexer.token();
+
     }
 
 
@@ -171,7 +177,7 @@ public class EventParser implements IEventParser {
                 int commaCount = 1;
                 StringBuilder out = new StringBuilder(16);
                 while (!((pos == length - 1 || (array[pos + 1] == ' ' && commaCount % 2 == 1)) && array[pos] == '\'')) {
-                    if(array[pos] == '\'') {
+                    if (array[pos] == '\'') {
                         commaCount++;
                     }
                     out.append(array[pos]);

@@ -1,0 +1,17 @@
+tunnel_subscribe_config:
+  pg_dump_path: ''
+  subscribes:
+    - slotName: slot_for_test
+      pgConnConf:
+        host: localhost
+        port: 5432
+        database: test1
+        user: test1
+        password: test1
+      rules:
+        - {table: test_1, pks: ['id'], topic: test_1_logs}
+        - {table: test_2, pks: ['id'], topic: test_2_logs}
+      kafkaConf:
+        addrs:
+          - localhost:9092
+tunnel_zookeeper_address: localhost:2181

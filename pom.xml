@@ -8,7 +8,22 @@
     <artifactId>tunnel-all</artifactId>
     <packaging>pom</packaging>
     <version>1.0.0-SNAPSHOT</version>
-
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>aliyun maven</name>
+            <url>http://maven.aliyun.com/nexus/content/groups/public/</url>
+            <layout>default</layout>
+            <!-- 是否开启发布版构件下载 -->
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+            <!-- 是否开启快照版构件下载 -->
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+        </repository>
+    </repositories>
     <build>
         <plugins>
             <plugin>
@@ -40,6 +55,7 @@
                     <maxmem>256m</maxmem>
                     <!-- aggregated reports for multi-module projects -->
                     <aggregate>true</aggregate>
+                    <check/>
                 </configuration>
             </plugin>
         </plugins>
@@ -104,10 +120,10 @@
 
     <properties>
         <asm.version>6.1.1</asm.version>
-        <postgresql.version>42.2.5</postgresql.version>
+        <postgresql.version>42.2.9</postgresql.version>
         <log4j2.version>2.11.1</log4j2.version>
         <disruptor.version>3.4.2</disruptor.version>
-        <es.version>6.4.2</es.version>
+        <es.version>7.4.2</es.version>
         <apollo.version>1.2.0</apollo.version>
         <junit.version>4.12</junit.version>
         <fastjson.version>1.2.51</fastjson.version>
@@ -121,8 +137,8 @@
         <guava.version>19.0</guava.version>
 
 
-        <hadoop.version>2.5.1</hadoop.version>
-        <hbase.version>1.3.0</hbase.version>
+        <hadoop.version>3.2.1</hadoop.version>
+        <hbase.version>2.2.2</hbase.version>
         <hive.version>2.1.1</hive.version>
 
 

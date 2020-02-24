@@ -276,7 +276,9 @@ public class TunnelLauncher {
         List<EsConfig> esConfigs = rules.stream()
                 .map(TunnelLauncher::toEsConfig)
                 .filter(Objects::nonNull)
-                .peek(esConfig -> esConfig.setServer(esConf.getAddrs()))
+                .peek(esConfig -> esConfig.setServers(esConf.getAddrs()))
+                .peek(esConfig -> esConfig.setRetry(esConf.getRetry()))
+                .peek(esConfig -> esConfig.setRetryWait(esConf.getRetry_wait()))
                 .collect(Collectors.toList());
 
         PublisherManager.getInstance().putPublisher(slotName, new EsPublisher(esConfigs));

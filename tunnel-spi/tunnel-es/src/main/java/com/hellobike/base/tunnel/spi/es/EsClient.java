@@ -60,9 +60,11 @@ final class EsClient {
         return false;
     }
 
-    private BulkRequest createBulkRequest(List<DocWriteRequest> doc) {
+    private BulkRequest createBulkRequest(List<DocWriteRequest> docs) {
         BulkRequest br = new BulkRequest();
-        br.add(doc);
+        for (DocWriteRequest doc:docs){
+            br.add(doc);
+        }
         br.setRefreshPolicy(WriteRequest.RefreshPolicy.IMMEDIATE);
         return br;
     }
